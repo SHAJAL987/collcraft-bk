@@ -2,10 +2,7 @@ package com.middlewareExp.collcraft.servicesImpl;
 
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
-import com.middlewareExp.collcraft.payload.CollectionRequest;
-import com.middlewareExp.collcraft.payload.CollectionResponse;
-import com.middlewareExp.collcraft.payload.Collections;
-import com.middlewareExp.collcraft.payload.GetAllCollections;
+import com.middlewareExp.collcraft.payload.*;
 import com.middlewareExp.collcraft.services.CollCraftService;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -199,6 +196,50 @@ public class CollCraftServiceImpl implements CollCraftService {
         } catch (Exception e) {
             response.setResponseCode("000");
             response.setResponseMessage("Operation not Successful.");
+        }
+        return response;
+    }
+
+    @Override
+    public DownloadColl downloadCollection(String serviceId, String timestamp, String collId, String correlationId) {
+        DownloadColl response = new DownloadColl();
+        HttpResponse<String> res = null;
+        String keystorePassword = "apex123";
+        try {
+
+            InputStream keystoreStream = getClass().getClassLoader().getResourceAsStream("cert/keystore.jks");
+            KeyStore keystore = KeyStore.getInstance("jks");
+            keystore.load(keystoreStream, keystorePassword.toCharArray());
+
+            // Create key manager
+            KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+            keyManagerFactory.init(keystore, keystorePassword.toCharArray());
+
+            // Create SSL context
+            SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
+            sslContext.init(keyManagerFactory.getKeyManagers(), null, null);
+
+            // Configure Unirest to use custom SSL context
+            Unirest.setHttpClient(org.apache.http.impl.client.HttpClients.custom().setSSLContext(sslContext).build());
+
+            res = Unirest.get(BASE_URL+"/collcraft/v1/getCollById")
+                    .header("User-Agent", "PostmanRuntime/7.30.0")
+                    .header("collId", collId)
+                    .asString();
+
+            JSONObject jsonResponseObject = new JSONObject(res.getBody());
+            JSONArray items = jsonResponseObject.getJSONArray("items");
+
+            // Loop through each item in the 'items' array and populate Collections
+            for (int i = 0; i < items.length(); i++) {
+                JSONObject item = items.getJSONObject(i);
+                response.setColl(item.getString("coll"));
+                response.setCollName(item.getString("coll_name"));
+            }
+
+        } catch (Exception e) {
+            response.setColl("not found");
+            response.setCollName("coll_name");
         }
         return response;
     }
